@@ -3,12 +3,8 @@ from __future__ import print_function
 from __future__ import division
 from __future__ import absolute_import
 import numpy as np
-import matplotlib.pyplot as plt
 from sklearn.datasets import fetch_openml
 from sklearn.model_selection import train_test_split
-import sys
-sys.path.insert(0, './handson20210511')
-import test_mlp 
 
 X, Y = fetch_openml('mnist_784', version=1, data_home="./data/", return_X_y=True)
 
