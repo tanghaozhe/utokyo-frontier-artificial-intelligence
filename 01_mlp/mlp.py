@@ -66,25 +66,9 @@ class Linear:
         self.x = x
         u = np.dot(x, self.W) + self.b  # self.W, self.b, x を用いて u を計算しよう
         z = self.activation(u)
-        if self.dropout != 0:
-            for i in range(len(z)):
-                z[i]= self.doDropout(z[i],self.dropout)
         self.z = z
         return self.z
-    
-    def doDropout(self,x, level):
-        if level < 0. or level >= 1:
-            raise ValueError('Dropout level must be in interval [0, 1].')
-        retain_prob = 1. - level
 
-        random_tensor = np.random.binomial(n=1, p=retain_prob, size=x.shape) 
-        # print(random_tensor)
-    
-        x *= random_tensor
-        # print(x)
-        x /= retain_prob
-    
-        return x
     
     def backward(self, dout):
         # 誤差計算
@@ -101,7 +85,7 @@ class MLP():
     def __init__(self, layers):
         self.layers = layers
         
-    def train(self, x, t, lr):     
+    def train(self, x, t, lr, dropout=0.4):     
         # 1. 順伝播
         self.y = x
         for layer in self.layers:
@@ -128,12 +112,25 @@ class MLP():
         for layer in self.layers[-2::-1]:
             # 3.2.1. 中間層の誤差・勾配計算
             dout = layer.backward(dout)   # 逆伝播計算を順番に実行しよう
-            
+            if dropout != 0:
+                for i in range(len(dout)):
+                    dout[i]= self.doDropout(dout[i], dropout) 
             # 3.2.2. パラメータの更新
             layer.W -= lr * layer.dW  # 各層の重みを更新
             layer.b -= lr * layer.db  # 各層のバイアスを更新
             
         return self.loss
+    
+    def doDropout(self,x, level):
+        if level < 0. or level >= 1:
+            raise ValueError('Dropout level must be in interval [0, 1].')
+        retain_prob = 1. - level
+
+        random_tensor = np.random.binomial(n=1, p=retain_prob, size=x.shape) 
+    
+        x *= random_tensor
+        x /= retain_prob
+        return x
 
     def test(self, x, t):
         # 性能をテストデータで調べるために用いる
@@ -145,13 +142,13 @@ class MLP():
         self.loss = np.sum(-t*np.log(self.y + 1e-7)) / len(x)
         return self.loss
 
-model = MLP([Linear(784, 1000, ReLU, 0),
-                      Linear(1000, 1000, ReLU, 0.4),
-                      Linear(1000, 10, Softmax, 0)])
+model = MLP([Linear(784, 1000, ReLU),
+                      Linear(1000, 1000, ReLU),
+                      Linear(1000, 10, Softmax)])
 
 n_epoch = 20
-batchsize =64
-lr = 0.2 # 0.5
+batchsize =200
+lr = 0.1 # 0.5
 
 for epoch in range(n_epoch):
     print('epoch %d | ' % epoch, end="")
