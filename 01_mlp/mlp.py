@@ -35,18 +35,18 @@ class ReLU:
         
     def __call__(self, x):
         self.x = x
-        return x * (x > 0)   # 順伝播計算
+        return x * (x > 0)
     
     def backward(self):
-        return 1 * (self.x > 0)   # 逆伝播計算
+        return 1 * (self.x > 0)
     
 class Softmax:
     def __init__(self):
         self.y = None
         
     def __call__(self, x):
-        exp_x = np.exp(x-x.max(axis=1, keepdims=True))  # ここで exp(x - x_max) を計算しよう
-        y = exp_x / np.sum(exp_x, axis=1, keepdims=True)  # exp_x を用いて softmax を計算しよう
+        exp_x = np.exp(x-x.max(axis=1, keepdims=True))
+        y = exp_x / np.sum(exp_x, axis=1, keepdims=True)
         self.y = y
         return y
     
@@ -62,9 +62,8 @@ class Linear:
         self.db = None
 
     def __call__(self, x):
-        # 順伝播計算
         self.x = x
-        u = np.dot(x, self.W) + self.b  # self.W, self.b, x を用いて u を計算しよう
+        u = np.dot(x, self.W) + self.b
         z = self.activation(u)
         self.z = z
         return self.z
@@ -72,12 +71,12 @@ class Linear:
     
     def backward(self, dout):
         # 誤差計算
-        self.delta = dout * self.activation.backward()  # dout と活性化関数の逆伝播 (self.activation.backward()) を用いて delta を計算しよう
-        dout = np.dot(self.delta, self.W.T)  # self.delta, self.W を用いて 出力 o を計算しよう
+        self.delta = dout * self.activation.backward()
+        dout = np.dot(self.delta, self.W.T)
         
         # 勾配計算
-        self.dW = np.dot(self.x.T, self.delta)   # dW を計算しよう
-        self.db = np.dot(np.ones(len(self.x)), self.delta)  # db を計算しよう
+        self.dW = np.dot(self.x.T, self.delta)
+        self.db = np.dot(np.ones(len(self.x)), self.delta)
         
         return dout
 
@@ -89,7 +88,7 @@ class MLP():
         # 1. 順伝播
         self.y = x
         for layer in self.layers:
-            self.y = layer(self.y)  # 順伝播計算を順番に行い， 出力 y を計算しよう
+            self.y = layer(self.y)
         
         # 2. 損失関数の計算
         self.loss = np.sum(-t*np.log(self.y + 1e-7)) / len(x)
@@ -105,13 +104,13 @@ class MLP():
         dout = np.dot(self.layers[-1].delta, self.layers[-1].W.T)
         
         # 3.1.2. 最終層のパラメータ更新
-        self.layers[-1].W -= lr * self.layers[-1].dW # self.layers[-1].dW を用いて最終層の重みを更新しよう
-        self.layers[-1].b -= lr * self.layers[-1].db  # self.layers[-1].db を用いて最終層のバイアスを更新しよう
+        self.layers[-1].W -= lr * self.layers[-1].dW
+        self.layers[-1].b -= lr * self.layers[-1].db
         
         # 3.2. 中間層
         for layer in self.layers[-2::-1]:
             # 3.2.1. 中間層の誤差・勾配計算
-            dout = layer.backward(dout)   # 逆伝播計算を順番に実行しよう
+            dout = layer.backward(dout)
             if dropout != 0:
                 for i in range(len(dout)):
                     dout[i]= self.doDropout(dout[i], dropout) 
