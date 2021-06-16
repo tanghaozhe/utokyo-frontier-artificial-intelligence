@@ -4,12 +4,8 @@
 ### task 1:
 Implement MLP to classify MNIST data.
 ### task 2:
-Implement CNNs to classify CIFAR10 data.
-* model_org
-* model_alexnet
-* model_resnet (todo)
-* model_vit (todo)
-    
+Implement Alex model to classify CIFAR10 data.
+
 
 
 
