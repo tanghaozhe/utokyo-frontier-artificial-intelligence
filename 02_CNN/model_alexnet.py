@@ -11,11 +11,11 @@ transform = transforms.Compose(
 
 trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
                                         download=True, transform=transform)
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=4,
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=8,
                                           shuffle=True, num_workers=2)
 testset = torchvision.datasets.CIFAR10(root='./data', train=False,
                                        download=True, transform=transform)
-testloader = torch.utils.data.DataLoader(testset, batch_size=4,
+testloader = torch.utils.data.DataLoader(testset, batch_size=8,
                                          shuffle=False, num_workers=2)
 classes = ('plane', 'car', 'bird', 'cat',
            'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
@@ -37,16 +37,30 @@ class Net(nn.Module):
         self.fc1 = nn.Linear(256 * 4 * 4, 4096)
         self.fc2 = nn.Linear(4096, 4096)
         self.fc3 = nn.Linear(4096, 10)
+        self.bn1 = nn.BatchNorm2d(96)
+        self.bn2 = nn.BatchNorm2d(256)
+        self.bn3 = nn.BatchNorm2d(384)
+        self.bn4 = nn.BatchNorm2d(384)
+        self.bn5 = nn.BatchNorm2d(256)
+
+        self.dropout = nn.Dropout(0.2)
 
     def forward(self, x):
         x = F.max_pool2d(F.relu(self.conv1(x)), (2, 2))
+        x = self.bn1(x)
         x = F.max_pool2d(F.relu(self.conv2(x)), (2, 2))
+        x = self.bn2(x)
         x = self.conv3(x)
+        x = self.bn3(x)
         x = self.conv4(x)
+        x = self.bn4(x)
         x = F.max_pool2d(F.relu(self.conv5(x)), (2, 2))
+        x = self.bn5(x)
         x = x.view(-1, 256 * 4 * 4)
         x = F.relu(self.fc1(x))
+        x = self.dropout(x)
         x = F.relu(self.fc2(x))
+        x = self.dropout(x)
         x = self.fc3(x)
         return x
 
@@ -56,10 +70,13 @@ net = Net().cuda()
 import torch.optim as optim
 
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+optimizer = optim.SGD(net.parameters(), lr=0.0001, momentum=0.9, weight_decay=1e-2)
 
-for epoch in range(2):  # 訓練データを複数回(2周分)学習する
 
+PATH = './alex_net.pth'
+
+max_acc = 0
+for epoch in range(30):  # 訓練データを複数回(2周分)学習する
     running_loss = 0.0
     for i, data in enumerate(trainloader, 0):
         # ローダからデータを取得する; データは [inputs, labels] の形で取得される．
@@ -81,16 +98,28 @@ for epoch in range(2):  # 訓練データを複数回(2周分)学習する
         # 統計を表示する．
         running_loss += loss.item()
         if i % 2000 == 1999:    # 2000 ミニバッチ毎に表示する．
-            print('[%d, %5d] loss: %.3f' %
-                  (epoch + 1, i + 1, running_loss / 2000))
+            # print('[%d, %5d] loss: %.3f' %(epoch + 1, i + 1, running_loss / 2000))
+
+            correct = 0
+            total = 0
+            with torch.no_grad():
+                for data in testloader:
+                    inputs, labels = data
+                    inputs = inputs.cuda()
+                    labels = labels.cuda()
+                    outputs = net(inputs)
+                    _, predicted = torch.max(outputs, 1)
+                    total += labels.size(0)
+                    correct += (predicted == labels).sum().item()
+            cur_acc = 100 * correct / total
+            print('[%d, %5d] loss: %.3f  test acc: %.2f %%' % (epoch + 1, i + 1, running_loss / 2000, cur_acc))
+            if cur_acc > max_acc:
+                torch.save(net.state_dict(), PATH)
+                print("model saved!")
+                max_acc = cur_acc
             running_loss = 0.0
 
 print('Finished Training')
-
-PATH = './alex_net.pth'
-torch.save(net.state_dict(), PATH)
-
-
 net = Net()
 net.load_state_dict(torch.load(PATH))
 
@@ -105,7 +134,7 @@ with torch.no_grad():
         total += labels.size(0)
         correct += (predicted == labels).sum().item()
 
-print('Accuracy of the network on the 10000 test images: %d %%' % (
+print('Accuracy of the network on the 10000 test images: %.2f %%' % (
     100 * correct / total))
 
 
@@ -125,5 +154,5 @@ with torch.no_grad():
 
 
 for i in range(10):
-    print('Accuracy of %5s : %2d %%' % (
+    print('Accuracy of %5s : %2.2f %%' % (
         classes[i], 100 * class_correct[i] / class_total[i]))
